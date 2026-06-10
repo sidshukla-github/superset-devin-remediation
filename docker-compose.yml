@@ -1,0 +1,26 @@
+services:
+  remediation:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      METRICS_PATH: /app/data/runs.jsonl
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # One-off CLI commands, e.g.:
+  #   docker compose run --rm cli simulate --issue 1
+  cli:
+    build: .
+    env_file:
+      - .env
+    environment:
+      METRICS_PATH: /app/data/runs.jsonl
+    volumes:
+      - ./data:/app/data
+    entrypoint: ["remediation"]
+    profiles:
+      - cli
