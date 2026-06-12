@@ -23,24 +23,30 @@ create_issue() {
   gh issue create --repo "$REPO" --title "$title" --label "$labels" --body-file "$body_file"
 }
 
-create_issue \
-  "Replace any types in TimeTable visualization utils" \
-  "devin-remediate,code-quality" \
-  "$SCRIPT_DIR/issue-bodies/01-timetable-any.md"
+# create_issue \
+#   "Replace any types in TimeTable visualization utils" \
+#   "devin-remediate,code-quality" \
+#   "$SCRIPT_DIR/issue-bodies/01-timetable-any.md"
+#
+# create_issue \
+#   "Add type hints to MCP system utils placeholder" \
+#   "devin-remediate,code-quality" \
+#   "$SCRIPT_DIR/issue-bodies/02-mcp-type-hints.md"
+#
+# create_issue \
+#   "Enforce dependency-review failures on critical CVEs" \
+#   "devin-remediate,security" \
+#   "$SCRIPT_DIR/issue-bodies/03-dependency-review.md"
+#
+# create_issue \
+#   "Bump pinned GitHub Actions in dependency-review workflow" \
+#   "devin-remediate,dependencies" \
+#   "$SCRIPT_DIR/issue-bodies/04-bump-actions.md"
 
+# Fast demo issue: single-file YAML change (~2–5 min with Devin). Use for video walkthroughs.
 create_issue \
-  "Add type hints to MCP system utils placeholder" \
-  "devin-remediate,code-quality" \
-  "$SCRIPT_DIR/issue-bodies/02-mcp-type-hints.md"
-
-create_issue \
-  "Enforce dependency-review failures on critical CVEs" \
-  "devin-remediate,security" \
-  "$SCRIPT_DIR/issue-bodies/03-dependency-review.md"
-
-create_issue \
-  "Bump pinned GitHub Actions in dependency-review workflow" \
+  "[Demo] Enable manual trigger for dependency-review workflow" \
   "devin-remediate,dependencies" \
-  "$SCRIPT_DIR/issue-bodies/04-bump-actions.md"
+  "$SCRIPT_DIR/issue-bodies/05-demo-workflow-dispatch.md"
 
 echo "Done. Update docs/ISSUES.md with the new issue URLs."

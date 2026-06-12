@@ -226,6 +226,8 @@ Copy [`.env.example`](.env.example) to `.env`.
 | `WEBHOOK_SECRET` | Webhooks | HMAC secret matching fork webhook settings |
 | `REMEDIATION_LABEL` | No | Default: `devin-remediate` |
 | `MAX_ACU_LIMIT` | No | Per-session ACU cap (default: 15) |
+| `TERMINATE_SESSION_ON_PR` | No | `true` (default): archive Devin session when PR opens |
+| `TERMINATE_SESSION_ARCHIVE` | No | `true` (default): keep terminated session visible in Devin UI |
 | `HTTP_SSL_VERIFY` | No | Set `false` behind SSL-inspecting proxies |
 | `DEVIN_SSL_VERIFY` | No | Legacy alias; `false` disables TLS verify for GitHub + Devin |
 | `DRY_RUN` | No | Set `true` to skip all API calls |
@@ -281,7 +283,8 @@ Or create manually on [sidshukla-github/superset/issues](https://github.com/sids
 | Wrong webhook path | Must be `/webhooks/github` (plural), not `/webhook/github` |
 | SSL errors in Docker (`CERTIFICATE_VERIFY_FAILED`) | Set `DEVIN_SSL_VERIFY=false` in `.env` (common behind Zscaler) |
 | Devin `403 out_of_quota` | Resolve billing in Devin settings; use `simulate` for demo |
-| PR exists but no `devin-completed` label | Run `finalize --issue N` or wait for `remediate` polling to finish |
+| PR exists but session still `running` in Devin | Orchestrator auto-terminates on PR (default). Run `finalize --issue N` if webhook path skipped polling |
+| PR exists but no `devin-completed` label | Run `finalize --issue N` |
 | Issues created but nothing triggered | Creating issues does not retroactively fire webhooks; re-label or run `poll` |
 | `code-quality` label not found | Run updated `create_issues.sh` (creates all required labels first) |
 

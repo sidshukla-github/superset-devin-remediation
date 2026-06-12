@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     remediation_label: str = "devin-remediate"
     max_acu_limit: int = 15
     poll_interval_seconds: int = 20
+    terminate_session_on_pr: bool = True
+    terminate_session_archive: bool = True
     metrics_path: str = "/app/data/runs.jsonl"
     dry_run: bool = False
     http_ssl_verify: bool = True

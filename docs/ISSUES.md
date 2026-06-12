@@ -19,6 +19,14 @@ Create issues on the fork with label `devin-remediate` to trigger remediation (w
 | 7 | Enforce dependency-review failures on critical CVEs | Supply chain | **remediated** | [#7](https://github.com/sidshukla-github/superset/issues/7) | [#9](https://github.com/sidshukla-github/superset/pull/9) |
 | 8 | Bump pinned GitHub Actions in dependency-review workflow | Dependency | open | [#8](https://github.com/sidshukla-github/superset/issues/8) | — |
 
+## Demo issue (fast video walkthrough)
+
+Single-file YAML change — typically completes in a few minutes (no frontend tests).
+
+| # | Title | Type | Status | Issue | PR |
+|---|-------|------|--------|-------|-----|
+| 11 | [Demo] Enable manual trigger for dependency-review workflow | CI / workflow | open | [#11](https://github.com/sidshukla-github/superset/issues/11) | — |
+
 ## Initial issues (batch 1)
 
 | # | Title | Type | Status | Issue | PR |

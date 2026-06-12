@@ -107,7 +107,7 @@ class RemediationOrchestrator:
         issue = self.github.get_issue(issue_number)
 
         if not session_id:
-            for comment in self.github.list_issue_comments(issue_number):
+            for comment in reversed(self.github.list_issue_comments(issue_number)):
                 body = comment.get("body", "")
                 if SESSION_MARKER in body:
                     marker = f"{SESSION_MARKER} `"
@@ -122,6 +122,7 @@ class RemediationOrchestrator:
             raise ValueError(f"No devin-session found on issue #{issue_number}")
 
         final_session = self.devin.get_session(session_id)
+        final_session = self.devin.stop_if_pr_open(session_id, final_session)
         session_url = final_session.get("url", f"https://app.devin.ai/sessions/{session_id}")
 
         pr_urls = [pr.get("pr_url") for pr in final_session.get("pull_requests", []) if pr.get("pr_url")]

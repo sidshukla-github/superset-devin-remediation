@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import Any
 
@@ -5,6 +6,8 @@ import httpx
 
 from remediation.config import settings
 from remediation.http_utils import http_client
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.devin.ai/v3"
 TERMINAL_STATUSES = {"exit", "error", "suspended"}
@@ -107,6 +110,48 @@ class DevinClient:
             response.raise_for_status()
             return response.json()
 
+    def terminate_session(self, session_id: str, archive: bool | None = None) -> dict[str, Any]:
+        """Stop a running session. Archives by default so it remains visible in Devin UI."""
+        if settings.dry_run:
+            session = self.get_session(session_id)
+            session["status"] = "exit"
+            return session
+
+        archive = settings.terminate_session_archive if archive is None else archive
+        params = {"archive": "true"} if archive else {}
+
+        with http_client() as client:
+            response = self._request_with_retry(
+                client,
+                "DELETE",
+                self._url(f"/sessions/{session_id}"),
+                params=params,
+            )
+            if response.status_code >= 400:
+                detail = response.text[:500]
+                raise httpx.HTTPStatusError(
+                    f"Devin terminate error {response.status_code}: {detail}",
+                    request=response.request,
+                    response=response,
+                )
+            return response.json()
+
+    def stop_if_pr_open(self, session_id: str, session: dict[str, Any]) -> dict[str, Any]:
+        """Terminate an active session once it has opened a PR."""
+        if not settings.terminate_session_on_pr:
+            return session
+        if session.get("status") not in ACTIVE_STATUSES:
+            return session
+        if not any(pr.get("pr_url") for pr in session.get("pull_requests", [])):
+            return session
+
+        logger.info("PR detected on active session %s; terminating", session_id)
+        try:
+            return self.terminate_session(session_id)
+        except httpx.HTTPError as exc:
+            logger.warning("Could not terminate session %s: %s", session_id, exc)
+            return session
+
     def send_message(self, session_id: str, message: str) -> dict[str, Any]:
         if settings.dry_run:
             return {"ok": True}
@@ -153,8 +198,11 @@ class DevinClient:
             if status in TERMINAL_STATUSES:
                 return session
 
-            # Devin may keep status=running after opening a PR; stop once work is done.
-            if session.get("pull_requests") and status_detail == "finished":
+            # Devin often keeps status=running after opening a PR — terminate and finish.
+            if any(pr.get("pr_url") for pr in session.get("pull_requests", [])):
+                return self.stop_if_pr_open(session_id, session)
+
+            if status_detail == "finished":
                 return session
 
             if status_detail in {"waiting_for_user", "waiting_for_approval"}:
