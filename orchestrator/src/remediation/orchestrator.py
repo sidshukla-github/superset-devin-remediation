@@ -6,6 +6,7 @@ from typing import Any
 from remediation.config import settings
 from remediation.devin_client import DevinClient
 from remediation.github_client import GitHubClient, SESSION_MARKER
+from remediation.locks import issue_remediation_lock
 from remediation.metrics import append_run
 from remediation.prompts import STRUCTURED_OUTPUT_SCHEMA, build_remediation_prompt
 
@@ -18,6 +19,16 @@ class RemediationOrchestrator:
         self.github = GitHubClient()
 
     def remediate_issue(self, issue_number: int, force: bool = False) -> dict[str, Any]:
+        with issue_remediation_lock(issue_number) as acquired:
+            if not acquired:
+                return {
+                    "skipped": True,
+                    "issue_number": issue_number,
+                    "reason": "already_in_progress",
+                }
+            return self._remediate_issue_locked(issue_number, force=force)
+
+    def _remediate_issue_locked(self, issue_number: int, force: bool = False) -> dict[str, Any]:
         started = time.time()
         issue = self.github.get_issue(issue_number)
 

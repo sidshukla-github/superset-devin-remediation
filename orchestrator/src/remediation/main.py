@@ -121,20 +121,14 @@ async def github_webhook(
     if repo_full_name != settings.target_repo:
         return {"status": "ignored", "reason": f"repo={repo_full_name}"}
 
-    should_remediate = False
-
-    if action == "labeled":
-        label = event.get("label", {}).get("name")
-        should_remediate = label == settings.remediation_label
-    elif action == "opened":
-        # Issues created with devin-remediate already applied do not emit "labeled".
-        label_names = {item.get("name") for item in issue.get("labels", [])}
-        should_remediate = settings.remediation_label in label_names
-    else:
+    # Only handle explicit label application. "issues.opened" with labels at creation
+    # also emits "issues.labeled" — handling both causes duplicate Devin sessions.
+    if action != "labeled":
         return {"status": "ignored", "reason": f"action={action}"}
 
-    if not should_remediate:
-        return {"status": "ignored", "reason": f"action={action}, no remediation label"}
+    label = event.get("label", {}).get("name")
+    if label != settings.remediation_label:
+        return {"status": "ignored", "reason": f"label={label}"}
 
     background_tasks.add_task(handle_labeled_issue, issue_number)
     return {"status": "accepted", "issue_number": str(issue_number), "action": action}

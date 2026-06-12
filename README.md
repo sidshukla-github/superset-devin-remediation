@@ -285,6 +285,7 @@ Or create manually on [sidshukla-github/superset/issues](https://github.com/sids
 | Devin `403 out_of_quota` | Resolve billing in Devin settings; use `simulate` for demo |
 | PR exists but session still `running` in Devin | Orchestrator auto-terminates on PR (default). Run `finalize --issue N` if webhook path skipped polling |
 | PR exists but no `devin-completed` label | Run `finalize --issue N` |
+| Two Devin sessions / two PRs for one issue | Caused by `issues.opened` + `issues.labeled` both firing; fixed in latest orchestrator. Rebuild: `docker compose up --build`. Use updated `create_issues.sh` (adds `devin-remediate` after create) |
 | Issues created but nothing triggered | Creating issues does not retroactively fire webhooks; re-label or run `poll` |
 | `code-quality` label not found | Run updated `create_issues.sh` (creates all required labels first) |
 

@@ -16,11 +16,15 @@ ensure_label code-quality 1D76DB
 ensure_label security D93F0B
 ensure_label dependencies FBCA04
 
-create_issue() {
+# Create without devin-remediate first, then add it — avoids duplicate webhook triggers.
+create_remediation_issue() {
   local title="$1"
-  local labels="$2"
+  local extra_labels="$2"
   local body_file="$3"
-  gh issue create --repo "$REPO" --title "$title" --label "$labels" --body-file "$body_file"
+  local number
+  number=$(gh issue create --repo "$REPO" --title "$title" --body-file "$body_file" --json number -q .number)
+  gh issue edit "$number" --repo "$REPO" --add-label "${extra_labels},devin-remediate"
+  echo "Created issue #${number}: https://github.com/${REPO}/issues/${number}"
 }
 
 # create_issue \
@@ -44,9 +48,9 @@ create_issue() {
 #   "$SCRIPT_DIR/issue-bodies/04-bump-actions.md"
 
 # Fast demo issue: single-file YAML change (~2–5 min with Devin). Use for video walkthroughs.
-create_issue \
+create_remediation_issue \
   "[Demo] Enable manual trigger for dependency-review workflow" \
-  "devin-remediate,dependencies" \
+  "dependencies" \
   "$SCRIPT_DIR/issue-bodies/05-demo-workflow-dispatch.md"
 
 echo "Done. Update docs/ISSUES.md with the new issue URLs."
