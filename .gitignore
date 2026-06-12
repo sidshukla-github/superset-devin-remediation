@@ -9,3 +9,6 @@ data/locks/
 !data/.gitkeep
 .DS_Store
 *.log
+
+# Personal Loom submission script (not for reviewers)
+docs/LOOM_VIDEO_SCRIPT.md
