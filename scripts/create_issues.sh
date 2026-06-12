@@ -21,10 +21,11 @@ create_remediation_issue() {
   local title="$1"
   local extra_labels="$2"
   local body_file="$3"
-  local number
-  number=$(gh issue create --repo "$REPO" --title "$title" --body-file "$body_file" --json number -q .number)
+  local issue_url number
+  issue_url=$(gh issue create --repo "$REPO" --title "$title" --body-file "$body_file")
+  number="${issue_url##*/}"
   gh issue edit "$number" --repo "$REPO" --add-label "${extra_labels},devin-remediate"
-  echo "Created issue #${number}: https://github.com/${REPO}/issues/${number}"
+  echo "Created issue #${number}: ${issue_url}"
 }
 
 # create_issue \
