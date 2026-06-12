@@ -1,14 +1,16 @@
 import hashlib
 import hmac
+import json
 import logging
 from typing import Any
+from urllib.parse import parse_qs
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 from remediation.config import settings
 from remediation.devin_client import DevinClient
-from remediation.metrics import format_report_markdown, generate_report
+from remediation.metrics import format_report_html, format_report_markdown, generate_report
 from remediation.orchestrator import RemediationOrchestrator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -19,6 +21,32 @@ app = FastAPI(
     description="Webhook receiver and metrics API for automated issue remediation",
     version="0.1.0",
 )
+
+
+def parse_github_payload(body: bytes, content_type: str | None) -> dict[str, Any]:
+    if not body:
+        raise HTTPException(status_code=400, detail="Empty webhook body")
+
+    if content_type and "application/json" in content_type:
+        return json.loads(body)
+
+    # GitHub default webhook content type: x-www-form-urlencoded with payload=...
+    if content_type and "application/x-www-form-urlencoded" in content_type:
+        parsed = parse_qs(body.decode("utf-8"))
+        payload = parsed.get("payload", [None])[0]
+        if not payload:
+            raise HTTPException(status_code=400, detail="Missing payload field")
+        return json.loads(payload)
+
+    # Fallback: try JSON first, then form encoding.
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        parsed = parse_qs(body.decode("utf-8"))
+        payload = parsed.get("payload", [None])[0]
+        if not payload:
+            raise HTTPException(status_code=400, detail="Unrecognized webhook body format")
+        return json.loads(payload)
 
 
 def verify_github_signature(payload: bytes, signature: str | None, secret: str) -> bool:
@@ -60,6 +88,8 @@ def report(format: str = "markdown") -> Response:
     data = generate_report(live_sessions)
     if format == "json":
         return JSONResponse(data)
+    if format == "html":
+        return Response(format_report_html(data), media_type="text/html")
     return PlainTextResponse(format_report_markdown(data), media_type="text/markdown")
 
 
@@ -75,26 +105,36 @@ async def github_webhook(
     if not verify_github_signature(payload, x_hub_signature_256, settings.webhook_secret):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
-    event = await request.json()
+    content_type = request.headers.get("content-type")
+    event = parse_github_payload(payload, content_type)
 
     if x_github_event != "issues":
         return {"status": "ignored", "reason": f"event={x_github_event}"}
 
     action = event.get("action")
-    if action != "labeled":
-        return {"status": "ignored", "reason": f"action={action}"}
-
-    label = event.get("label", {}).get("name")
-    if label != settings.remediation_label:
-        return {"status": "ignored", "reason": f"label={label}"}
+    issue = event.get("issue", {})
+    issue_number = issue.get("number")
+    if not issue_number:
+        raise HTTPException(status_code=400, detail="Missing issue number")
 
     repo_full_name = event.get("repository", {}).get("full_name")
     if repo_full_name != settings.target_repo:
         return {"status": "ignored", "reason": f"repo={repo_full_name}"}
 
-    issue_number = event.get("issue", {}).get("number")
-    if not issue_number:
-        raise HTTPException(status_code=400, detail="Missing issue number")
+    should_remediate = False
+
+    if action == "labeled":
+        label = event.get("label", {}).get("name")
+        should_remediate = label == settings.remediation_label
+    elif action == "opened":
+        # Issues created with devin-remediate already applied do not emit "labeled".
+        label_names = {item.get("name") for item in issue.get("labels", [])}
+        should_remediate = settings.remediation_label in label_names
+    else:
+        return {"status": "ignored", "reason": f"action={action}"}
+
+    if not should_remediate:
+        return {"status": "ignored", "reason": f"action={action}, no remediation label"}
 
     background_tasks.add_task(handle_labeled_issue, issue_number)
-    return {"status": "accepted", "issue_number": str(issue_number)}
+    return {"status": "accepted", "issue_number": str(issue_number), "action": action}

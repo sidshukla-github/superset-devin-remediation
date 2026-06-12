@@ -118,3 +118,95 @@ def format_report_markdown(report: dict[str, Any]) -> str:
         lines.append("_No runs recorded yet._")
 
     return "\n".join(lines)
+
+
+def format_report_html(report: dict[str, Any]) -> str:
+    s = report["summary"]
+    recent_rows = ""
+    for run in reversed(report["recent_runs"]):
+        badge = "success" if run.get("success") else "failed"
+        prs = ", ".join(run.get("pr_urls") or []) or "—"
+        recent_rows += f"""
+        <tr>
+          <td>#{run.get('issue_number')}</td>
+          <td><span class="badge {badge}">{badge}</span></td>
+          <td><code>{run.get('session_id', '—')}</code></td>
+          <td>{run.get('duration_seconds', '—')}s</td>
+          <td>{run.get('acus_consumed', '—')}</td>
+          <td>{prs}</td>
+        </tr>"""
+
+    throughput_rows = "".join(
+        f"<tr><td>{day}</td><td>{count}</td></tr>"
+        for day, count in report["throughput_last_7_days"].items()
+    ) or "<tr><td colspan='2'>No runs in the last 7 days</td></tr>"
+
+    active_rows = "".join(
+        f"""<tr>
+          <td><code>{s.get('session_id', '—')}</code></td>
+          <td>{s.get('status', '—')}</td>
+          <td><a href="{s.get('url', '#')}">open</a></td>
+        </tr>"""
+        for s in report["active_sessions"]
+    ) or "<tr><td colspan='3'>No active sessions</td></tr>"
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Remediation Dashboard</title>
+  <style>
+    body {{ font-family: system-ui, sans-serif; margin: 2rem; background: #f6f8fa; color: #1f2328; }}
+    h1 {{ margin-bottom: 0.25rem; }}
+    .muted {{ color: #656d76; margin-bottom: 2rem; }}
+    .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }}
+    .card {{ background: white; border: 1px solid #d0d7de; border-radius: 8px; padding: 1rem; }}
+    .card .value {{ font-size: 2rem; font-weight: 700; }}
+    .card .label {{ color: #656d76; font-size: 0.9rem; }}
+    table {{ width: 100%; border-collapse: collapse; background: white; border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; margin-bottom: 2rem; }}
+    th, td {{ padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #d0d7de; }}
+    th {{ background: #f6f8fa; }}
+    .badge {{ padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }}
+    .badge.success {{ background: #dafbe1; color: #116329; }}
+    .badge.failed {{ background: #ffebe9; color: #82071e; }}
+    section {{ margin-bottom: 2rem; }}
+  </style>
+</head>
+<body>
+  <h1>Superset Devin Remediation Dashboard</h1>
+  <p class="muted">Generated {report['generated_at']}</p>
+
+  <div class="cards">
+    <div class="card"><div class="value">{s['total_runs']}</div><div class="label">Total runs</div></div>
+    <div class="card"><div class="value">{s['successes']}</div><div class="label">Completed (success)</div></div>
+    <div class="card"><div class="value">{s['failures']}</div><div class="label">Failed</div></div>
+    <div class="card"><div class="value">{s['success_rate_percent']}%</div><div class="label">Success rate</div></div>
+    <div class="card"><div class="value">{s['active_sessions']}</div><div class="label">Active sessions</div></div>
+    <div class="card"><div class="value">{s['avg_acu_consumed']}</div><div class="label">Avg ACU / run</div></div>
+  </div>
+
+  <section>
+    <h2>Active sessions</h2>
+    <table>
+      <thead><tr><th>Session</th><th>Status</th><th>Link</th></tr></thead>
+      <tbody>{active_rows}</tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Throughput (last 7 days)</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Runs</th></tr></thead>
+      <tbody>{throughput_rows}</tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Recent runs</h2>
+    <table>
+      <thead><tr><th>Issue</th><th>Result</th><th>Session</th><th>Duration</th><th>ACU</th><th>PRs</th></tr></thead>
+      <tbody>{recent_rows or "<tr><td colspan='6'>No runs recorded yet</td></tr>"}</tbody>
+    </table>
+  </section>
+</body>
+</html>"""

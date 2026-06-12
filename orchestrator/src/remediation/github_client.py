@@ -1,8 +1,7 @@
 from typing import Any
 
-import httpx
-
 from remediation.config import settings
+from remediation.http_utils import http_client
 
 GITHUB_API = "https://api.github.com"
 SESSION_MARKER = "devin-session:"
@@ -29,7 +28,7 @@ class GitHubClient:
                 "labels": [{"name": settings.remediation_label}],
             }
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.get(
                 f"{GITHUB_API}/repos/{self.owner}/{self.repo}/issues/{issue_number}",
                 headers=self._headers,
@@ -42,7 +41,7 @@ class GitHubClient:
         if settings.dry_run:
             return []
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.get(
                 f"{GITHUB_API}/repos/{self.owner}/{self.repo}/issues",
                 headers=self._headers,
@@ -55,7 +54,7 @@ class GitHubClient:
         if settings.dry_run:
             return []
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.get(
                 f"{GITHUB_API}/repos/{self.owner}/{self.repo}/issues/{issue_number}/comments",
                 headers=self._headers,
@@ -73,7 +72,7 @@ class GitHubClient:
             print(f"[dry-run] Comment on issue #{issue_number}:\n{body}\n")
             return {"id": 0, "body": body}
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.post(
                 f"{GITHUB_API}/repos/{self.owner}/{self.repo}/issues/{issue_number}/comments",
                 headers=self._headers,
@@ -87,7 +86,7 @@ class GitHubClient:
             print(f"[dry-run] Add label '{label}' to issue #{issue_number}")
             return
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.post(
                 f"{GITHUB_API}/repos/{self.owner}/{self.repo}/issues/{issue_number}/labels",
                 headers=self._headers,
@@ -99,7 +98,7 @@ class GitHubClient:
         if settings.dry_run:
             return
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.get(
                 f"{GITHUB_API}/repos/{self.owner}/{self.repo}/labels",
                 headers=self._headers,

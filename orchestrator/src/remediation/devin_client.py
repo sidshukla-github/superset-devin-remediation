@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 
 from remediation.config import settings
+from remediation.http_utils import http_client
 
 BASE_URL = "https://api.devin.ai/v3"
 TERMINAL_STATUSES = {"exit", "error", "suspended"}
@@ -23,7 +24,7 @@ class DevinClient:
         return f"{BASE_URL}/organizations/{self.org_id}{path}"
 
     def verify(self) -> dict[str, Any]:
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = client.get(f"{BASE_URL}/self", headers=self._headers)
             response.raise_for_status()
             return response.json()
@@ -65,11 +66,17 @@ class DevinClient:
         if structured_output_schema:
             payload["structured_output_schema"] = structured_output_schema
 
-        with httpx.Client(timeout=60) as client:
+        with http_client(timeout=60) as client:
             response = self._request_with_retry(
                 client, "POST", self._url("/sessions"), json=payload
             )
-            response.raise_for_status()
+            if response.status_code >= 400:
+                detail = response.text[:500]
+                raise httpx.HTTPStatusError(
+                    f"Devin API error {response.status_code}: {detail}",
+                    request=response.request,
+                    response=response,
+                )
             return response.json()
 
     def get_session(self, session_id: str) -> dict[str, Any]:
@@ -93,7 +100,7 @@ class DevinClient:
                 "acus_consumed": 0.0,
             }
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = self._request_with_retry(
                 client, "GET", self._url(f"/sessions/{session_id}")
             )
@@ -104,7 +111,7 @@ class DevinClient:
         if settings.dry_run:
             return {"ok": True}
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = self._request_with_retry(
                 client,
                 "POST",
@@ -120,7 +127,7 @@ class DevinClient:
             for tag in tags:
                 params.setdefault("tags", []).append(tag)
 
-        with httpx.Client(timeout=30) as client:
+        with http_client() as client:
             response = self._request_with_retry(
                 client, "GET", self._url("/sessions"), params=params
             )
@@ -144,6 +151,10 @@ class DevinClient:
             status_detail = session.get("status_detail", "")
 
             if status in TERMINAL_STATUSES:
+                return session
+
+            # Devin may keep status=running after opening a PR; stop once work is done.
+            if session.get("pull_requests") and status_detail == "finished":
                 return session
 
             if status_detail in {"waiting_for_user", "waiting_for_approval"}:

@@ -1,135 +1,250 @@
 # Superset Devin Remediation Orchestrator
 
-Automated remediation system for [Apache Superset](https://github.com/apache/superset) fork issues using the [Devin API](https://docs.devin.ai/api-reference/overview).
+Dockerized automation that remediates scoped issues on an [Apache Superset](https://github.com/apache/superset) fork using the [Devin API](https://docs.devin.ai/api-reference/overview). Labeling a fork issue triggers the orchestrator, which dispatches Devin, posts status to GitHub, opens fix PRs, and records metrics for leadership reporting.
 
-## Architecture
-
-This repository is the **solution repo** (Docker + orchestrator). The Superset fork is separate:
+## Repositories
 
 | Repository | URL | Role |
 |------------|-----|------|
-| **Solution** (this repo) | `sidshukla-github/superset-devin-remediation` | Orchestrator, Docker, metrics |
-| **Superset fork** | [sidshukla-github/superset](https://github.com/sidshukla-github/superset) | Issues + remediated PRs |
+| **Solution** (this repo) | `sidshukla-github/superset-devin-remediation` | Docker orchestrator, webhook, analytics |
+| **Superset fork** | [sidshukla-github/superset](https://github.com/sidshukla-github/superset) | Remediation issues + fix PRs |
 
+## Take-home deliverables
+
+| Task | What we built | Where to verify |
+|------|---------------|-----------------|
+| **Task 1 — Issues** | 4 scoped remediation issues on the fork | [docs/ISSUES.md](docs/ISSUES.md), [fork Issues](https://github.com/sidshukla-github/superset/issues) |
+| **Task 2 — Automation** | Event-driven orchestrator (webhook + CLI) | Issue comments, Devin session, [PR #9](https://github.com/sidshukla-github/superset/pull/9) |
+| **Task 3 — Analytics** | `runs.jsonl` + HTML/Markdown report | [reports/dashboard.html](reports/dashboard.html), `curl /report?format=html` |
+
+## Architecture
+
+```mermaid
+sequenceDiagram
+    participant Fork as Superset_Fork
+    participant Orch as Orchestrator_Docker
+    participant Devin as Devin_API
+    participant Report as Analytics
+
+    Fork->>Orch: issue labeled devin-remediate
+    Orch->>Fork: read issue + acceptance criteria
+    Orch->>Devin: POST /v3/sessions
+    Orch->>Fork: comment devin-session started
+    loop Poll every 20s
+        Orch->>Devin: GET session status
+    end
+    Devin->>Fork: opens fix PR
+    Orch->>Fork: completion comment + devin-completed label
+    Orch->>Report: append runs.jsonl
 ```
-Fork issue labeled "devin-remediate"
-        │
-        ▼
-  Webhook → this service (port 8080)
-        │
-        ├── POST Devin API /sessions
-        ├── Poll until complete
-        ├── Comment on fork issue + open PR
-        └── Append metrics to data/runs.jsonl
-```
+
+**Verified live remediation:**
+
+- Issue: [#7 — Enforce dependency-review failures on critical CVEs](https://github.com/sidshukla-github/superset/issues/7)
+- PR: [#9 — fix(ci): enforce dependency-review failures on critical CVEs](https://github.com/sidshukla-github/superset/pull/9)
+- Label: `devin-completed`
+
+---
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- [Devin service user API key](https://docs.devin.ai/api-reference/authentication) (`cog_...`) and org ID
-- GitHub PAT with `repo` scope on `sidshukla-github/superset`
-- Issues created on the fork (see [docs/ISSUES.md](docs/ISSUES.md))
+| Path | Requirements |
+|------|----------------|
+| **Simulate** (no credentials) | Docker + Docker Compose only |
+| **Live** | Devin service user key (`cog_...`), org ID, GitHub PAT with **Issues: Read/Write** on the fork |
+| **Webhook** (optional) | Public tunnel (localtunnel/ngrok) — GitHub cannot reach `localhost` |
 
-## Quick start
+---
+
+## Reviewer quick start — Simulate (5 minutes, no API keys)
+
+Exercises the full orchestration path without calling Devin or GitHub.
+
+```bash
+git clone https://github.com/sidshukla-github/superset-devin-remediation.git
+cd superset-devin-remediation
+
+docker compose --profile cli build
+docker compose --profile cli run --rm cli simulate --issue 7
+docker compose --profile cli run --rm cli report --format html > reports/dashboard.html
+open reports/dashboard.html   # macOS; or open the file in a browser
+```
+
+**Expected outputs:**
+
+- Terminal prints a JSON remediation record
+- `data/runs.jsonl` gains a new row
+- `reports/dashboard.html` shows success rate, throughput, and recent runs
+
+**Alternative — HTTP report** (with service running):
+
+```bash
+docker compose up --build -d
+curl http://localhost:8080/health
+open "http://localhost:8080/report?format=html"
+```
+
+---
+
+## Live workflow — CLI trigger (recommended)
 
 ```bash
 cp .env.example .env
-# Edit .env with your credentials
+# Edit .env: DEVIN_API_KEY, DEVIN_ORG_ID, GITHUB_TOKEN
+# If Docker SSL errors (e.g. Zscaler proxy): DEVIN_SSL_VERIFY=false
 
-docker compose up --build
-```
-
-Verify:
-
-```bash
-curl http://localhost:8080/health
-curl http://localhost:8080/report
-```
-
-## Simulate workflow (no API keys required)
-
-Dry-run mode exercises the full flow without calling Devin or GitHub:
-
-```bash
-docker compose --profile cli run --rm cli simulate --issue 1
-docker compose --profile cli run --rm cli report
-```
-
-This writes a metrics row to `data/runs.jsonl` and prints status to the console.
-
-## Live remediation
-
-### Option A — Webhook (recommended for production)
-
-1. Start the service: `docker compose up --build`
-2. Expose port 8080 (ngrok, Cloudflare Tunnel, or deploy to a host)
-3. In [fork repo settings → Webhooks](https://github.com/sidshukla-github/superset/settings/hooks):
-   - **Payload URL**: `https://<your-host>/webhooks/github`
-   - **Content type**: `application/json`
-   - **Secret**: same as `WEBHOOK_SECRET` in `.env`
-   - **Events**: Issues
-4. Create an issue from [docs/ISSUES.md](docs/ISSUES.md) and add label `devin-remediate`
-
-### Option B — CLI (manual trigger)
-
-```bash
+docker compose --profile cli build
 docker compose --profile cli run --rm cli verify
-docker compose --profile cli run --rm cli remediate --issue 3
+docker compose --profile cli run --rm cli remediate --issue 7
 ```
 
-### Option C — Poll labeled issues
+**If a PR opens but `devin-completed` label is missing** (Devin session still `running`):
+
+```bash
+docker compose --profile cli run --rm cli finalize --issue 7
+```
+
+**What to check on the fork:**
+
+1. Issue comment: `devin-session: <id>` with link to [app.devin.ai](https://app.devin.ai)
+2. Completion comment with PR URL
+3. Label `devin-completed` or `devin-failed`
+4. Fix PR on the fork
+
+**Process all unprocessed labeled issues:**
 
 ```bash
 docker compose --profile cli run --rm cli poll
 ```
 
-Processes all open issues with `devin-remediate` that do not yet have a Devin session comment.
+---
+
+## Live workflow — Webhook trigger (optional)
+
+Use this to demonstrate event-driven automation without manual CLI commands.
+
+1. Start the service:
+
+   ```bash
+   docker compose up --build
+   ```
+
+2. Expose port 8080 (GitHub cannot reach `localhost`):
+
+   ```bash
+   npx localtunnel --port 8080
+   ```
+
+3. Configure webhook on the [fork](https://github.com/sidshukla-github/superset/settings/hooks):
+   - **Payload URL**: `https://<tunnel-host>/webhooks/github` (note: `webhooks`, plural)
+   - **Content type**: `application/json` or `application/x-www-form-urlencoded`
+   - **Secret**: same as `WEBHOOK_SECRET` in `.env`
+   - **Events**: Issues
+
+4. Re-trigger an issue: remove `devin-remediate` label and add it back.
+
+5. Verify:
+   - Fork → Settings → Webhooks → Recent Deliveries → **200**
+   - `docker compose logs -f remediation`
+
+---
+
+## Analytics and reporting (Task 3)
+
+**Question: "How do I know this is working?"**
+
+| Metric | Where |
+|--------|-------|
+| Active vs completed tasks | Dashboard cards: "Active sessions" vs "Completed (success)" / "Failed" |
+| Success/failure signals | `success: true/false` in `data/runs.jsonl`; `devin-completed` / `devin-failed` labels on issues |
+| Throughput / progress | Dashboard "Throughput (last 7 days)" table; per-run rows in `runs.jsonl` |
+| Audit trail | `data/runs.jsonl` — one JSON object per remediation run |
+
+**View reports:**
+
+```bash
+# HTML dashboard (best for reviewers)
+docker compose --profile cli run --rm cli report --format html > reports/dashboard.html
+open reports/dashboard.html
+
+# Markdown in terminal
+docker compose --profile cli run --rm cli report
+
+# JSON
+docker compose --profile cli run --rm cli report --format json
+
+# HTTP (service must be running)
+curl "http://localhost:8080/report?format=html" > reports/dashboard.html
+```
+
+---
+
+## How to verify each requirement
+
+| Requirement | Check |
+|-------------|-------|
+| Event trigger | Webhook delivery 200, or `remediate` / `poll` CLI log |
+| Devin session initiated | Issue comment with `devin-session:` and Devin URL |
+| Session managed | Orchestrator polls until terminal or PR + finished; completion comment posted |
+| Observable outputs | PR on fork, issue comments, `data/runs.jsonl`, `/report` |
+| Active sessions | Dashboard "Active sessions" card (live Devin API when not dry-run) |
+| Success rate | Dashboard "Success rate" card; `success` field in `runs.jsonl` |
+
+---
 
 ## CLI reference
 
-| Command | Description |
-|---------|-------------|
-| `simulate --issue N` | Dry-run remediation (no API calls) |
-| `remediate --issue N` | Live Devin session for issue N |
-| `poll` | Process all unprocessed labeled issues |
-| `report` | Print metrics report (markdown) |
-| `report --format json` | Print metrics as JSON |
-| `verify` | Test Devin API credentials |
-
-Run via Docker:
+All commands run via Docker:
 
 ```bash
 docker compose --profile cli run --rm cli <command>
 ```
 
-## Analytics / leadership view
+| Command | Description |
+|---------|-------------|
+| `simulate --issue N` | Dry-run remediation (no API calls) |
+| `remediate --issue N` | Start live Devin session for issue N |
+| `finalize --issue N` | Apply completion comment/label from existing session (e.g. after PR opens) |
+| `poll` | Process all open `devin-remediate` issues without a session comment |
+| `report` | Print metrics report (markdown) |
+| `report --format json` | Print metrics as JSON |
+| `report --format html` | Print HTML dashboard |
+| `verify` | Test Devin API credentials |
 
-**Question: "How do I know this is working?"**
-
-1. **HTTP report**: `curl http://localhost:8080/report` — success rate, ACU spend, throughput
-2. **Fork issues**: each run posts start + completion comments with session URL and PR link
-3. **Metrics file**: `data/runs.jsonl` — append-only audit log
-4. **Devin dashboard**: filter sessions by tag `superset-remediation`
-
-Sample metrics are in `data/runs.sample.jsonl`. Copy to `data/runs.jsonl` for a demo:
-
-```bash
-cp data/runs.sample.jsonl data/runs.jsonl
-curl http://localhost:8080/report
-```
+---
 
 ## Environment variables
+
+Copy [`.env.example`](.env.example) to `.env`.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DEVIN_API_KEY` | Live runs | Devin service user key (`cog_...`) |
 | `DEVIN_ORG_ID` | Live runs | Devin organization ID |
-| `GITHUB_TOKEN` | Live runs | GitHub PAT with repo access |
+| `GITHUB_TOKEN` | Live runs | GitHub PAT; **Issues: Read/Write** on fork (fine-grained) or `public_repo` (classic) |
 | `TARGET_REPO` | No | Default: `sidshukla-github/superset` |
-| `WEBHOOK_SECRET` | Webhooks | HMAC secret for GitHub webhooks |
+| `WEBHOOK_SECRET` | Webhooks | HMAC secret matching fork webhook settings |
 | `REMEDIATION_LABEL` | No | Default: `devin-remediate` |
 | `MAX_ACU_LIMIT` | No | Per-session ACU cap (default: 15) |
-| `DRY_RUN` | No | Set `true` to skip API calls |
+| `HTTP_SSL_VERIFY` | No | Set `false` behind SSL-inspecting proxies |
+| `DEVIN_SSL_VERIFY` | No | Legacy alias; `false` disables TLS verify for GitHub + Devin |
+| `DRY_RUN` | No | Set `true` to skip all API calls |
+
+---
+
+## Creating issues on the fork (Task 1)
+
+Issue templates and scope are documented in [docs/ISSUES.md](docs/ISSUES.md).
+
+Create all four issues with one command (requires `gh` CLI):
+
+```bash
+./scripts/create_issues.sh
+```
+
+Or create manually on [sidshukla-github/superset/issues](https://github.com/sidshukla-github/superset/issues) using the templates in `docs/ISSUES.md`. Each issue needs label `devin-remediate`.
+
+---
 
 ## Project structure
 
@@ -139,43 +254,43 @@ curl http://localhost:8080/report
 ├── docker-compose.yml
 ├── orchestrator/
 │   └── src/remediation/
-│       ├── main.py           # FastAPI webhook + /report
-│       ├── orchestrator.py   # Core remediation flow
+│       ├── main.py           # FastAPI webhook + /health + /report
+│       ├── orchestrator.py   # Core remediation + finalize flow
 │       ├── devin_client.py   # Devin API v3 client
 │       ├── github_client.py  # GitHub issue comments/labels
-│       ├── metrics.py        # runs.jsonl + reporting
+│       ├── metrics.py        # runs.jsonl + HTML/Markdown reporting
 │       └── cli.py            # CLI entrypoint
+├── scripts/
+│   ├── create_issues.sh      # Create fork issues via gh CLI
+│   └── issue-bodies/         # Issue body templates
 ├── docs/
-│   └── ISSUES.md             # Issue templates for the fork
+│   └── ISSUES.md             # Issue index + templates
+├── reports/
+│   └── dashboard.html        # Sample HTML dashboard output
 └── data/
-    └── runs.jsonl            # Metrics (gitignored, volume-mounted)
+    └── runs.jsonl            # Metrics audit log (volume-mounted)
 ```
 
-## Creating fork issues
+---
 
-Use the templates in [docs/ISSUES.md](docs/ISSUES.md), or with GitHub CLI:
+## Troubleshooting
 
-```bash
-gh issue create --repo sidshukla-github/superset \
-  --title "Enforce dependency-review failures on critical CVEs" \
-  --label "devin-remediate,security" \
-  --body-file - <<'BODY'
-## Problem
-The dependency-review GitHub Action uses continue-on-error: true.
+| Problem | Solution |
+|---------|----------|
+| GitHub rejects `localhost` webhook URL | Use `npx localtunnel --port 8080` or run CLI `remediate` / `poll` instead |
+| Wrong webhook path | Must be `/webhooks/github` (plural), not `/webhook/github` |
+| SSL errors in Docker (`CERTIFICATE_VERIFY_FAILED`) | Set `DEVIN_SSL_VERIFY=false` in `.env` (common behind Zscaler) |
+| Devin `403 out_of_quota` | Resolve billing in Devin settings; use `simulate` for demo |
+| PR exists but no `devin-completed` label | Run `finalize --issue N` or wait for `remediate` polling to finish |
+| Issues created but nothing triggered | Creating issues does not retroactively fire webhooks; re-label or run `poll` |
+| `code-quality` label not found | Run updated `create_issues.sh` (creates all required labels first) |
 
-## Scope
-- Files: .github/workflows/dependency-review.yml
-
-## Acceptance criteria
-- [ ] continue-on-error: false on dependency-review step
-- [ ] PR references this issue
-BODY
-```
+---
 
 ## Submission checklist
 
-- [ ] Solution repo pushed with Docker setup and README
-- [ ] Fork at https://github.com/sidshukla-github/superset with 4 issues created
-- [ ] At least one issue remediated (PR linked in issue + `docs/ISSUES.md`)
-- [ ] `/report` shows success metrics
-- [ ] Reviewer can run `docker compose --profile cli run --rm cli simulate --issue 1`
+- [x] Solution repo with Docker setup and this README
+- [x] Fork at [sidshukla-github/superset](https://github.com/sidshukla-github/superset) with remediation issues
+- [x] Live remediation: [issue #7](https://github.com/sidshukla-github/superset/issues/7) → [PR #9](https://github.com/sidshukla-github/superset/pull/9)
+- [x] Analytics: `data/runs.jsonl` + [reports/dashboard.html](reports/dashboard.html)
+- [x] Reviewer can simulate: `docker compose --profile cli run --rm cli simulate --issue 7`

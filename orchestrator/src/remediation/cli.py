@@ -4,7 +4,7 @@ import sys
 
 from remediation.config import settings
 from remediation.devin_client import DevinClient
-from remediation.metrics import format_report_markdown, generate_report
+from remediation.metrics import format_report_html, format_report_markdown, generate_report
 from remediation.orchestrator import RemediationOrchestrator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -51,8 +51,19 @@ def cmd_report(args: argparse.Namespace) -> int:
     if args.format == "json":
         import json
         print(json.dumps(report, indent=2))
+    elif args.format == "html":
+        print(format_report_html(report))
     else:
         print(format_report_markdown(report))
+    return 0
+
+
+def cmd_finalize(args: argparse.Namespace) -> int:
+    if not settings.devin_configured or not settings.github_configured:
+        logger.error("DEVIN_API_KEY, DEVIN_ORG_ID, and GITHUB_TOKEN are required")
+        return 1
+    result = RemediationOrchestrator().finalize_issue(args.issue, session_id=args.session)
+    print(result)
     return 0
 
 
@@ -83,8 +94,16 @@ def main() -> None:
     remediate.set_defaults(func=cmd_remediate)
 
     report = sub.add_parser("report", help="Print remediation metrics report")
-    report.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    report.add_argument("--format", choices=["markdown", "json", "html"], default="markdown")
     report.set_defaults(func=cmd_report)
+
+    finalize = sub.add_parser(
+        "finalize",
+        help="Post completion comment/labels from existing Devin session (e.g. after PR opens)",
+    )
+    finalize.add_argument("--issue", type=int, required=True)
+    finalize.add_argument("--session", type=str, default=None)
+    finalize.set_defaults(func=cmd_finalize)
 
     verify = sub.add_parser("verify", help="Verify Devin API credentials")
     verify.set_defaults(func=cmd_verify)

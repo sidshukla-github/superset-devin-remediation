@@ -2,20 +2,37 @@
 
 Target repository: [sidshukla-github/superset](https://github.com/sidshukla-github/superset)
 
-Create these issues on the fork, then label each with `devin-remediate` to trigger remediation (or use `docker compose run --rm cli simulate --issue N` locally).
+Create issues on the fork with label `devin-remediate` to trigger remediation (webhook or `docker compose --profile cli run --rm cli remediate --issue N`).
+
+## Live remediation result
+
+| Issue | Title | PR | Status |
+|-------|-------|-----|--------|
+| [#7](https://github.com/sidshukla-github/superset/issues/7) | Enforce dependency-review failures on critical CVEs | [#9](https://github.com/sidshukla-github/superset/pull/9) | **remediated** (`devin-completed`) |
+
+## All issues (batch 2 — created via `create_issues.sh`)
 
 | # | Title | Type | Status | Issue | PR |
 |---|-------|------|--------|-------|-----|
-| 1 | Replace `any` types in TimeTable visualization utils | Code quality | pending | — | — |
-| 2 | Add type hints to MCP system utils placeholder | Code quality | pending | — | — |
-| 3 | Enforce dependency-review failures on critical CVEs | Supply chain | pending | — | — |
-| 4 | Bump pinned GitHub Actions in dependency-review workflow | Dependency | pending | — | — |
+| 5 | Replace `any` types in TimeTable visualization utils | Code quality | open | [#5](https://github.com/sidshukla-github/superset/issues/5) | — |
+| 6 | Add type hints to MCP system utils placeholder | Code quality | open | [#6](https://github.com/sidshukla-github/superset/issues/6) | — |
+| 7 | Enforce dependency-review failures on critical CVEs | Supply chain | **remediated** | [#7](https://github.com/sidshukla-github/superset/issues/7) | [#9](https://github.com/sidshukla-github/superset/pull/9) |
+| 8 | Bump pinned GitHub Actions in dependency-review workflow | Dependency | open | [#8](https://github.com/sidshukla-github/superset/issues/8) | — |
 
-Update this table with issue and PR URLs after creation.
+## Initial issues (batch 1)
+
+| # | Title | Type | Status | Issue | PR |
+|---|-------|------|--------|-------|-----|
+| 1 | Replace `any` types in TimeTable visualization utils | Code quality | open | [#1](https://github.com/sidshukla-github/superset/issues/1) | — |
+| 2 | Add type hints to MCP system utils placeholder | Code quality | open | [#2](https://github.com/sidshukla-github/superset/issues/2) | — |
+| 3 | Enforce dependency-review failures on critical CVEs | Supply chain | open | [#3](https://github.com/sidshukla-github/superset/issues/3) | — |
+| 4 | Bump pinned GitHub Actions in dependency-review workflow | Dependency | open | [#4](https://github.com/sidshukla-github/superset/issues/4) | — |
 
 ---
 
-## Issue 1 — Replace `any` types in TimeTable utils
+## Issue templates
+
+### Issue 1 — Replace `any` types in TimeTable utils
 
 **Labels:** `devin-remediate`, `code-quality`
 
@@ -39,9 +56,7 @@ The TimeTable visualization utilities use `any` types, which conflicts with Supe
 Label `devin-remediate` to trigger external remediation orchestrator.
 ```
 
----
-
-## Issue 2 — Add type hints to MCP system utils
+### Issue 2 — Add type hints to MCP system utils
 
 **Labels:** `devin-remediate`, `code-quality`
 
@@ -63,9 +78,7 @@ Label `devin-remediate` to trigger external remediation orchestrator.
 Label `devin-remediate` to trigger external remediation orchestrator.
 ```
 
----
-
-## Issue 3 — Enforce dependency-review on critical CVEs
+### Issue 3 — Enforce dependency-review on critical CVEs
 
 **Labels:** `devin-remediate`, `security`
 
@@ -86,9 +99,7 @@ The dependency-review GitHub Action uses `continue-on-error: true`, so critical 
 Label `devin-remediate` to trigger external remediation orchestrator.
 ```
 
----
-
-## Issue 4 — Bump pinned GitHub Actions
+### Issue 4 — Bump pinned GitHub Actions
 
 **Labels:** `devin-remediate`, `dependencies`
 

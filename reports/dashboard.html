@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Remediation Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #f6f8fa; color: #1f2328; }
+    h1 { margin-bottom: 0.25rem; }
+    .muted { color: #656d76; margin-bottom: 2rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: white; border: 1px solid #d0d7de; border-radius: 8px; padding: 1rem; }
+    .card .value { font-size: 2rem; font-weight: 700; }
+    .card .label { color: #656d76; font-size: 0.9rem; }
+    table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; margin-bottom: 2rem; }
+    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #d0d7de; }
+    th { background: #f6f8fa; }
+    .badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+    .badge.success { background: #dafbe1; color: #116329; }
+    .badge.failed { background: #ffebe9; color: #82071e; }
+    section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Superset Devin Remediation Dashboard</h1>
+  <p class="muted">Generated 2026-06-10T13:30:12.817777+00:00</p>
+
+  <div class="cards">
+    <div class="card"><div class="value">5</div><div class="label">Total runs</div></div>
+    <div class="card"><div class="value">5</div><div class="label">Completed (success)</div></div>
+    <div class="card"><div class="value">0</div><div class="label">Failed</div></div>
+    <div class="card"><div class="value">100.0%</div><div class="label">Success rate</div></div>
+    <div class="card"><div class="value">0</div><div class="label">Active sessions</div></div>
+    <div class="card"><div class="value">0.0</div><div class="label">Avg ACU / run</div></div>
+  </div>
+
+  <section>
+    <h2>Active sessions</h2>
+    <table>
+      <thead><tr><th>Session</th><th>Status</th><th>Link</th></tr></thead>
+      <tbody><tr><td colspan='3'>No active sessions</td></tr></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Throughput (last 7 days)</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Runs</th></tr></thead>
+      <tbody><tr><td>2026-06-10</td><td>5</td></tr></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Recent runs</h2>
+    <table>
+      <thead><tr><th>Issue</th><th>Result</th><th>Session</th><th>Duration</th><th>ACU</th><th>PRs</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>#8</td>
+          <td><span class="badge success">success</span></td>
+          <td><code>devin-dry-run-001</code></td>
+          <td>0.0s</td>
+          <td>0.0</td>
+          <td>https://github.com/sidshukla-github/superset/pull/1</td>
+        </tr>
+        <tr>
+          <td>#7</td>
+          <td><span class="badge success">success</span></td>
+          <td><code>devin-dry-run-001</code></td>
+          <td>0.0s</td>
+          <td>0.0</td>
+          <td>https://github.com/sidshukla-github/superset/pull/1</td>
+        </tr>
+        <tr>
+          <td>#6</td>
+          <td><span class="badge success">success</span></td>
+          <td><code>devin-dry-run-001</code></td>
+          <td>0.0s</td>
+          <td>0.0</td>
+          <td>https://github.com/sidshukla-github/superset/pull/1</td>
+        </tr>
+        <tr>
+          <td>#5</td>
+          <td><span class="badge success">success</span></td>
+          <td><code>devin-dry-run-001</code></td>
+          <td>0.0s</td>
+          <td>0.0</td>
+          <td>https://github.com/sidshukla-github/superset/pull/1</td>
+        </tr>
+        <tr>
+          <td>#1</td>
+          <td><span class="badge success">success</span></td>
+          <td><code>devin-dry-run-001</code></td>
+          <td>0.0s</td>
+          <td>0.0</td>
+          <td>https://github.com/sidshukla-github/superset/pull/1</td>
+        </tr></tbody>
+    </table>
+  </section>
+</body>
+</html>
