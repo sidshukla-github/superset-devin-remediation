@@ -141,7 +141,7 @@ Use this to demonstrate event-driven automation without manual CLI commands.
    - **Secret**: same as `WEBHOOK_SECRET` in `.env`
    - **Events**: Issues
 
-4. Re-trigger an issue: remove `devin-remediate` label and add it back.
+4. Re-trigger an issue: remove `devin-remediate` label and add it back. Alternatively, run `./scripts/create_issues.sh` to create a new demo issue (adds the label automatically).
 
 5. Verify:
    - Fork → Settings → Webhooks → Recent Deliveries → **200**
