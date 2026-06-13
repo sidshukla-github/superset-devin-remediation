@@ -14,7 +14,7 @@ Dockerized automation that remediates scoped issues on an [Apache Superset](http
 | Task | What we built | Where to verify |
 |------|---------------|-----------------|
 | **Task 1 — Issues** | 4 scoped remediation issues on the fork | [docs/ISSUES.md](docs/ISSUES.md), [fork Issues](https://github.com/sidshukla-github/superset/issues) |
-| **Task 2 — Automation** | Event-driven orchestrator (webhook + CLI) | Issue comments, Devin session, [PR #9](https://github.com/sidshukla-github/superset/pull/9) |
+| **Task 2 — Automation** | Event-driven orchestrator (webhook + CLI) | Issue comments, Devin session, [PR #26](https://github.com/sidshukla-github/superset/pull/26) |
 | **Task 3 — Analytics** | `runs.jsonl` + HTML/Markdown report | [reports/dashboard.html](reports/dashboard.html), `curl /report?format=html` |
 
 ## Architecture
@@ -40,8 +40,8 @@ sequenceDiagram
 
 **Verified live remediation:**
 
-- Issue: [#7 — Enforce dependency-review failures on critical CVEs](https://github.com/sidshukla-github/superset/issues/7)
-- PR: [#9 — fix(ci): enforce dependency-review failures on critical CVEs](https://github.com/sidshukla-github/superset/pull/9)
+- Issue: [#25 — [Demo] Enable manual trigger for dependency-review workflow](https://github.com/sidshukla-github/superset/issues/25)
+- PR: [#26 — ci(dependency-review): enable manual workflow dispatch](https://github.com/sidshukla-github/superset/pull/26)
 - Label: `devin-completed`
 
 ---
@@ -65,7 +65,7 @@ git clone https://github.com/sidshukla-github/superset-devin-remediation.git
 cd superset-devin-remediation
 
 docker compose --profile cli build
-docker compose --profile cli run --rm cli simulate --issue 7
+docker compose --profile cli run --rm cli simulate --issue 25
 docker compose --profile cli run --rm cli report --format html > reports/dashboard.html
 open reports/dashboard.html   # macOS; or open the file in a browser
 ```
@@ -88,6 +88,12 @@ open "http://localhost:8080/report?format=html"
 
 ## Live workflow — CLI trigger (recommended)
 
+Create a fresh demo issue (or pick an open labeled issue on the fork):
+
+```bash
+./scripts/create_issues.sh   # note the issue number from the output (e.g. #27)
+```
+
 ```bash
 cp .env.example .env
 # Edit .env: DEVIN_API_KEY, DEVIN_ORG_ID, GITHUB_TOKEN
@@ -95,13 +101,13 @@ cp .env.example .env
 
 docker compose --profile cli build
 docker compose --profile cli run --rm cli verify
-docker compose --profile cli run --rm cli remediate --issue 7
+docker compose --profile cli run --rm cli remediate --issue 27   # your issue number
 ```
 
 **If a PR opens but `devin-completed` label is missing** (Devin session still `running`):
 
 ```bash
-docker compose --profile cli run --rm cli finalize --issue 7
+docker compose --profile cli run --rm cli finalize --issue 27   # your issue number
 ```
 
 **What to check on the fork:**
@@ -295,6 +301,6 @@ Or create manually on [sidshukla-github/superset/issues](https://github.com/sids
 
 - [x] Solution repo with Docker setup and this README
 - [x] Fork at [sidshukla-github/superset](https://github.com/sidshukla-github/superset) with remediation issues
-- [x] Live remediation: [issue #7](https://github.com/sidshukla-github/superset/issues/7) → [PR #9](https://github.com/sidshukla-github/superset/pull/9)
+- [x] Live remediation: [issue #25](https://github.com/sidshukla-github/superset/issues/25) → [PR #26](https://github.com/sidshukla-github/superset/pull/26)
 - [x] Analytics: `data/runs.jsonl` + [reports/dashboard.html](reports/dashboard.html)
-- [x] Reviewer can simulate: `docker compose --profile cli run --rm cli simulate --issue 7`
+- [x] Reviewer can simulate: `docker compose --profile cli run --rm cli simulate --issue 25`
